@@ -19,9 +19,21 @@ def normalize_company(name: str) -> str:
         "cap gemini": "capgemini",
         "cap-gemini": "capgemini",
         "capgemini france": "capgemini",
+        "darty": "Darty",
     }
     key = text.lower()
     return replacements.get(key, text)
+def normalize_city(name: str) -> str:
+    if pd.isna(name):
+        return name
+    text = clean_text(name)
+    return text.title()
+
+def normalize_country(code: str) -> str:
+    if pd.isna(code):
+        return code
+    text = clean_text(code)
+    return text.upper()
 
 
 def load_raw() -> pd.DataFrame:
@@ -43,6 +55,10 @@ def main():
 
     if "Société" in df.columns:
         df["Société"] = df["Société"].map(normalize_company)
+    if "Ville" in df.columns:
+        df["Ville"] = df["Ville"].map(normalize_city)
+    if "Pays" in df.columns:
+        df["Pays"] = df["Pays"].map(normalize_country)
 
     CLEAN_PATH.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(CLEAN_PATH, index=False)
