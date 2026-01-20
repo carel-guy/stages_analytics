@@ -7,24 +7,51 @@ def main():
         raise FileNotFoundError(f"DuckDB not found: {DUCKDB_PATH}")
 
     con = duckdb.connect(str(DUCKDB_PATH))
+    cols = {row[1] for row in con.execute("PRAGMA table_info('stages_clean')").fetchall()}
+
+    def pick_col(candidates):
+        for col in candidates:
+            if col in cols:
+                return f"\"{col}\""
+        return None
+
+    entreprise_col = pick_col(["Société", "Societe"])
+    pays_col = pick_col(["Pays", "pays"])
+    promotion_col = pick_col(["Promotion"])
+    sujet_col = pick_col(["Sujet"])
+
+    if entreprise_col is None or pays_col is None:
+        raise ValueError("Missing required columns for marts: Société/Societe or Pays/pays")
+
+    year_parts = []
+    if promotion_col:
+        year_parts.append(
+            f"regexp_extract(CAST({promotion_col} AS VARCHAR), '(20\\\\d{{2}})', 1)"
+        )
+    if sujet_col:
+        year_parts.append(
+            f"regexp_extract(CAST({sujet_col} AS VARCHAR), '(20\\\\d{{2}})', 1)"
+        )
+
+    if year_parts:
+        year_expr = f"COALESCE({', '.join(year_parts)})"
+    else:
+        year_expr = "NULL"
 
     con.execute("DROP VIEW IF EXISTS stages_analytics")
     con.execute(
-        """
+        f"""
         CREATE VIEW stages_analytics AS
         SELECT
             *,
             CAST(
                 NULLIF(
-                    COALESCE(
-                        regexp_extract(Promotion, '(20\\d{2})', 1),
-                        regexp_extract(Sujet, '(20\\d{2})', 1)
-                    ),
+                    {year_expr},
                     ''
                 ) AS INTEGER
             ) AS annee,
-            COALESCE("Société", "Societe") AS entreprise,
-            COALESCE("Pays", "pays") AS pays
+            {entreprise_col} AS entreprise,
+            {pays_col} AS pays
         FROM stages_clean
         """
     )
