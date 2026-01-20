@@ -1,0 +1,7 @@
+pandas>=2.0
+duckdb>=0.9
+streamlit>=1.30
+pyarrow>=14.0
+plotly>=5.18
+jupyterlab>=4.0
+ipykernel>=6.0
